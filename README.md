@@ -34,16 +34,47 @@ node dist/cli.js run examples/offline/suite.yaml
 node dist/cli.js run examples/commit-message/suite.yaml
 ```
 
+## 실제로 써 보며 발견한 것
+
+이 도구로 예제 Skill을 평가하다가 실제 문제 두 가지를 찾았습니다. 아래 숫자는 모두 `claude` CLI로 실제 실행한 결과입니다.
+
+### 1. 평가가 실행 환경에 오염돼 있었다 → `isolate` 추가
+
+처음에는 provider를 `claude -p --append-system-prompt "$(cat SKILL.md)"`로 실행했습니다. 출력을 직접 읽어 보니 이상한 점이 있었습니다.
+
+- "이 레포에는 GPX 관련 변경이 없다", "`ab28890` 커밋을 보면…"처럼 **모델이 레포를 직접 읽고 있었습니다.** `claude -p`는 텍스트 생성기가 아니라, 현재 디렉터리에서 도구를 쓰는 에이전트였습니다.
+- 로컬 Claude Code 설정의 `Co-Authored-By` 줄이 커밋 메시지에 섞였습니다.
+- 8건 중 4건은 에이전트가 레포를 탐색하느라 90초 타임아웃을 넘겼습니다.
+
+즉 Skill이 아니라 **Skill + 레포 상태 + 개인 설정**을 측정하고 있었습니다. 같은 Skill이라도 누가 어디서 돌리느냐에 따라 점수가 달라지는 평가는 의미가 없습니다. 그래서 provider에 `isolate: true` 옵션을 추가했습니다. 호출마다 빈 임시 디렉터리에서 실행하고, 끝나면 지웁니다. 예제는 도구를 끄고(`--tools ""`) Skill을 시스템 프롬프트 전체로 쓰도록 바꿨습니다. 그 결과 출력이 깨끗해졌고, 평균 응답 시간도 약 6~7초에서 약 4초로 줄었습니다.
+
+### 2. Skill의 결함을 찾고, 고친 효과를 숫자로 확인했다
+
+격리된 상태에서 출력을 모으다가, 성능 개선 커밋에서 모델이 **"Hmm, perf isn't allowed. Use feat?…"라는 생각 과정을 출력에 그대로 넣은** 사례를 발견했습니다. SKILL.md의 허용 타입 목록에 `perf`가 없었기 때문입니다. 이 입력을 회귀 케이스(`perf-type`)로 추가하고 케이스당 5회씩 측정했습니다.
+
 ```
+# 수정 전
 case                pass  score  σ     note   avg time
 ------------------  ----  -----  ----  -----  --------
-bugfix              100%  1.00   0.00         6951ms
-feature-with-scope  100%  0.99   0.01         5420ms
-no-chatter          100%  1.00   0.00         6496ms
-commit-message: pass 100% · score 1.00 · flaky 0/3
+bugfix              100%  1.00   0.00         4399ms
+feature-with-scope  100%  0.99   0.01         3940ms
+no-chatter          100%  1.00   0.00         4032ms
+perf-type           20%   0.80   0.10  flaky  4996ms
+commit-message: pass 80% · score 0.95 · flaky 1/4
 ```
 
-위는 `claude` CLI로 실제 실행한 결과입니다(케이스당 3회). `flaky`는 "같은 입력인데 어떤 시도는 통과하고 어떤 시도는 실패했다"는 뜻이고, 이 예제처럼 규칙이 명확한 Skill에서는 0이 나옵니다. 모호한 Skill일수록 σ와 `flaky`가 올라갑니다.
+5번 중 4번은 성능 개선을 `feat`로 잘못 분류했습니다. 한 번만 돌렸다면 통과로 보였을 수도 있는 문제입니다. 허용 타입에 `perf`를 넣고 "판단 과정을 출력하지 말 것"을 추가한 뒤 다시 측정했습니다.
+
+```
+$ skill-gauge compare before.json after.json
+case       change       Δpass  Δscore
+---------  -----------  -----  ------
+perf-type  improvement  +80%   +0.20
+
+overall: Δpass +20% · Δscore +0.05 · regressions 0
+```
+
+`perf-type`은 20%에서 100%가 됐고, 나머지 케이스에는 회귀가 없습니다.
 
 ## 테스트 스위트 작성
 
@@ -51,10 +82,12 @@ commit-message: pass 100% · score 1.00 · flaky 0/3
 name: commit-message
 provider:
   # 케이스 input이 stdin으로 들어가고, stdout이 출력으로 쓰입니다
-  command: claude -p --append-system-prompt "$(cat SKILL.md)"
+  command: claude -p --tools "" --system-prompt "$(cat "$SKILL_GAUGE_SUITE_DIR/SKILL.md")"
+  isolate: true # 호출마다 빈 임시 디렉터리에서 실행
   timeoutMs: 90000
 judge: # llm-rubric을 쓸 때만 필요
-  command: claude -p --model haiku
+  command: claude -p --model haiku --tools ""
+  isolate: true
 repeat: 3 # 케이스당 반복 횟수
 concurrency: 3
 
@@ -70,7 +103,10 @@ cases:
         weight: 2
 ```
 
-provider는 **쉘 명령**입니다. 그래서 Claude Code, 다른 LLM CLI, 직접 만든 스크립트를 SDK 연동 없이 모두 평가할 수 있습니다. 명령은 스위트 파일이 있는 디렉터리에서 실행되고, `SKILL_GAUGE_CASE_ID`와 `SKILL_GAUGE_TRIAL` 환경변수를 받습니다.
+provider는 **쉘 명령**입니다. 그래서 Claude Code, 다른 LLM CLI, 직접 만든 스크립트를 SDK 연동 없이 모두 평가할 수 있습니다. 명령은 `SKILL_GAUGE_SUITE_DIR`(스위트 파일 위치), `SKILL_GAUGE_CASE_ID`, `SKILL_GAUGE_TRIAL` 환경변수를 받습니다.
+
+- 기본값으로는 스위트 파일이 있는 디렉터리에서 실행됩니다.
+- `isolate: true`면 호출마다 새 빈 임시 디렉터리에서 실행하고 끝나면 지웁니다. **에이전트형 CLI(`claude -p` 등)를 평가할 때는 켜는 것을 권장합니다.** 끄면 주변 레포와 로컬 설정이 결과에 섞입니다.
 
 > 좋은 케이스 작성법, `repeat`·`threshold` 정하는 법, CI에서 PR 게이트로 쓰는 법은 [docs/guide.md](docs/guide.md)를 보세요.
 
@@ -123,13 +159,13 @@ skill-gauge compare runs/base/*.json runs/head/*.json --threshold 0.1
 case                change      Δpass  Δscore
 ------------------  ----------  -----  ------
 bugfix              regression  -100%  -1.00
-feature-with-scope  regression  -100%  -0.49
+feature-with-scope  regression  -100%  -0.52
 no-chatter          regression  -100%  -1.00
 
-overall: Δpass -100% · Δscore -0.83 · regressions 3
+overall: Δpass -100% · Δscore -0.84 · regressions 3
 ```
 
-위 출력은 SKILL.md에 "친절하게 설명부터 시작하라"는 지시를 넣어 일부러 망가뜨린 뒤 실제로 비교한 결과이고, 종료 코드는 `1`입니다. 통과율은 0%여도 점수가 0이 아닌 케이스가 있는 것은(`feature-with-scope`) assertion 일부만 통과했기 때문이며, 그래서 통과/실패 외에 점수도 함께 봅니다.
+위 출력은 SKILL.md에 "친절하게 설명부터 시작하라"는 지시를 넣어 일부러 망가뜨린 뒤, 격리 모드에서 실제로 비교한 결과이고(`perf-type` 추가 전 3개 케이스), 종료 코드는 `1`입니다. 통과율은 0%여도 점수가 0이 아닌 케이스가 있는 것은(`feature-with-scope`) assertion 일부만 통과했기 때문이며, 그래서 통과/실패 외에 점수도 함께 봅니다.
 `--threshold`보다 작은 변화는 무시합니다. LLM 출력에는 원래 노이즈가 있어서, 작은 흔들림까지 회귀로 잡으면 경보가 의미를 잃기 때문입니다.
 
 ### 채점 LLM 검증 (`calibrate`)

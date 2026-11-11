@@ -1,0 +1,34 @@
+# Generates outputs from the rule-based skill for the calibration set.
+name: gen-rules
+provider:
+  # Isolated: the skill is the *whole* system prompt, no tools, empty working
+  # directory — so we measure the skill, not the repo or local Claude settings.
+  command: claude -p --tools "" --no-session-persistence --system-prompt "$(cat "$SKILL_GAUGE_SUITE_DIR/../commit-message/SKILL.md")"
+  isolate: true
+  timeoutMs: 90000
+concurrency: 4
+cases:
+  - id: gpx-crash
+    input: "Fixed a crash when the GPX file has no timestamps; we now skip those points."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: json-flag
+    input: "Added a --json flag to the report command of the CLI."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: rename-var
+    input: "Renamed internal variable `tmp` to `buffer` in the parser. No behavior change."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: docs-typo
+    input: "Fixed two typos in the README installation section."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: multi-change
+    input: "Upgraded zod to v4, which required changing how schema errors are formatted, and also bumped the Node engine to >=22."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: breaking-api
+    input: "Removed the deprecated `runAll()` export; callers must use `runSuite()` instead."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: perf
+    input: "Cached parsed YAML suites so repeated runs in watch mode skip re-parsing; cuts startup from ~400ms to ~40ms."
+    assert: [{ type: max-length, value: 100000 }]
+  - id: revert
+    input: "Reverted yesterday's change that made judge timeouts count as passes; it hid real failures."
+    assert: [{ type: max-length, value: 100000 }]

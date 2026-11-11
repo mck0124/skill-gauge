@@ -2,10 +2,15 @@
 # Requires the `claude` CLI. Run: skill-gauge run examples/commit-message/suite.yaml
 name: commit-message
 provider:
-  command: claude -p --append-system-prompt "$(cat SKILL.md)"
+  # Isolated: the skill is the *whole* system prompt, no tools, empty working
+  # directory — so we measure the skill, not the repo or local Claude settings.
+  command: claude -p --tools "" --no-session-persistence --system-prompt "$(cat "$SKILL_GAUGE_SUITE_DIR/SKILL.md")"
+  isolate: true
   timeoutMs: 90000
 judge:
-  command: claude -p --model haiku
+  # Isolated: no tools, no Claude Code agent prompt, empty working directory.
+  command: claude -p --model haiku --tools "" --no-session-persistence --system-prompt "You are a strict evaluator. Follow the user's grading instructions exactly."
+  isolate: true
 repeat: 3
 concurrency: 3
 
@@ -30,3 +35,13 @@ cases:
     assert:
       - { type: regex, pattern: "^refactor" }
       - { type: not-contains, value: "Here", ignoreCase: false }
+
+  # Regression case: "perf" was missing from the allowed types, and the model
+  # leaked its deliberation ("Hmm, perf isn't allowed…") into the output.
+  - id: perf-type
+    input: Cached parsed YAML suites so repeated runs in watch mode skip re-parsing; cuts startup from ~400ms to ~40ms.
+    assert:
+      - { type: regex, pattern: "^perf(\\([\\w-]+\\))?: " }
+      - { type: regex, pattern: "^[^\\n]+(\\n\\n[\\s\\S]+)?$" }
+      - { type: not-contains, value: "Hmm" }
+      - { type: not-contains, value: "```" }
