@@ -1,5 +1,7 @@
 # Real calibration set: 16 outputs collected with gen-rules.yaml / gen-naive.yaml,
 # shuffled, then scored by a human (the repo author) without seeing their source.
+# Labels were scored from a raw text file: an earlier pass in the terminal
+# rendered some outputs truncated, which produced wrong labels.
 # Run: skill-gauge calibrate examples/calibration/commit-judge.yaml
 name: commit-judge
 judge:
@@ -26,7 +28,7 @@ samples:
     input: "Reverted yesterday's change that made judge timeouts count as passes; it hid real failures."
     output: "```\nRevert \"Count judge timeouts as passes\"\n\nThis reverts yesterday's change that scored judge timeouts as passes.\nTreating a timeout as a pass hid real failures. Timeouts now count\nas failures again.\n```\n\nThe working directory isn't a git repo, so I couldn't find the original commit. If you're using `git revert`, add a line under the message saying `This reverts commit <sha>.` with the original commit's hash."
     rubric: *rubric
-    human: 0.2
+    human: 0.4
   - id: s04-json-flag-rules
     input: "Added a --json flag to the report command of the CLI."
     output: "feat(cli): add --json flag to report command"
@@ -36,12 +38,12 @@ samples:
     input: "Removed the deprecated `runAll()` export; callers must use `runSuite()` instead."
     output: "refactor(api)!: remove deprecated runAll() export\n\nBREAKING CHANGE: runAll() is no longer exported. Use runSuite() instead."
     rubric: *rubric
-    human: 0.4
+    human: 1.0
   - id: s06-docs-typo-rules
     input: "Fixed two typos in the README installation section."
     output: "docs(readme): fix two typos in installation section"
     rubric: *rubric
-    human: 0.4
+    human: 1.0
   - id: s07-multi-change-naive
     input: "Upgraded zod to v4, which required changing how schema errors are formatted, and also bumped the Node engine to >=22."
     output: "```\nUpgrade zod to v4 and require Node >=22\n\nBump zod to v4. Zod 4 changed its error format, so update our schema\nerror formatting to match.\n\nAlso raise engines.node to >=22.\n```\n\nIf the Node bump isn't needed for zod 4, you could make it a separate commit. That way, if either change has to be reverted, the other can stay."
@@ -66,7 +68,7 @@ samples:
     input: "Added a --json flag to the report command of the CLI."
     output: "No repository was available, so I couldn't see the diff. This message is based only on your description:\n\n```\nAdd --json flag to report command\n\nLet the report command print its results as JSON instead of the\nhuman-readable format, so other tools and scripts can read the\noutput. The default output is unchanged.\n```\n\nSwap in the real details where you can. For example, name the fields the JSON includes, or note if the flag also changes the exit code or stops colored output."
     rubric: *rubric
-    human: 0.2
+    human: 0.4
   - id: s12-gpx-crash-naive
     input: "Fixed a crash when the GPX file has no timestamps; we now skip those points."
     output: "```\nSkip GPX points that have no timestamp\n\nParsing a GPX file with trackpoints that had no <time> element caused\na crash. These points are now skipped, and the rest of the file is\nparsed as before.\n```\n\nIf you'd like the message to name the function or file you changed, tell me which one and I'll add it."
@@ -81,12 +83,12 @@ samples:
     input: "Cached parsed YAML suites so repeated runs in watch mode skip re-parsing; cuts startup from ~400ms to ~40ms."
     output: "```\nCache parsed YAML suites across watch-mode runs\n\nWatch mode re-parsed every YAML suite on each run, even when the\nfiles hadn't changed. Parsed suites are now cached, so later runs\nreuse them and skip parsing.\n\nStartup in watch mode drops from ~400ms to ~40ms.\n```\n\nThe working directory isn't a git repository, so I wrote this from your description rather than from a diff. Before you commit, check the body against what the code actually does. In particular, check how the cache decides a file has changed (for example, by modification time or a content hash) and add that to the body."
     rubric: *rubric
-    human: 0.0
+    human: 0.4
   - id: s15-rename-var-naive
     input: "Renamed internal variable `tmp` to `buffer` in the parser. No behavior change."
     output: "Rename `tmp` to `buffer` in the parser\n\nThe new name makes the variable's purpose clearer. Behavior is unchanged."
     rubric: *rubric
-    human: 0.0
+    human: 1.0
   - id: s16-rename-var-rules
     input: "Renamed internal variable `tmp` to `buffer` in the parser. No behavior change."
     output: "refactor(parser): rename tmp variable to buffer"
