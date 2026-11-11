@@ -1,9 +1,10 @@
 import { parseArgs } from "node:util";
-import { ConfigError, loadSuite } from "./config/load.js";
+import { ConfigError, loadCalibration, loadSuite } from "./config/load.js";
+import { runCalibration, type CalibrationReport } from "./core/calibrate.js";
 import { compare } from "./core/compare.js";
 import { runSuite } from "./core/run.js";
 import { summarize } from "./core/stats.js";
-import { formatComparison, formatSummary } from "./format/table.js";
+import { formatCalibration, formatComparison, formatSummary } from "./format/table.js";
 import { commandProvider } from "./providers/command.js";
 import { DEFAULT_RUNS_DIR, latestRunPath, loadRun, saveRun } from "./store/runs.js";
 
@@ -16,6 +17,7 @@ Usage:
   skill-gauge run <suite.yaml> [--repeat N] [--case ID]... [--out DIR] [--min-pass-rate R]
   skill-gauge report [run.json] [--dir DIR] [--json] [--min-pass-rate R]
   skill-gauge compare <base.json> <head.json> [--threshold T]
+  skill-gauge calibrate <calibration.yaml> [--max-mae X] [--json]
 
 Exit codes: 0 ok · 1 quality gate failed · 2 usage/config error
 Docs: https://github.com/mck0124/skill-gauge#readme`;
@@ -109,6 +111,48 @@ async function cmdCompare(args: string[]): Promise<number> {
   return result.regressions > 0 ? EXIT.GATE : EXIT.OK;
 }
 
+async function cmdCalibrate(args: string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args,
+    allowPositionals: true,
+    options: { "max-mae": { type: "string" }, json: { type: "boolean", default: false } },
+  });
+  const [file] = positionals;
+  if (!file) throw new UsageError("calibrate: missing <calibration.yaml>");
+  const maxMae = ratio(values["max-mae"], "--max-mae");
+
+  const { calibration, baseDir } = await loadCalibration(file);
+  const report = await runCalibration(
+    calibration,
+    commandProvider(calibration.judge, baseDir),
+    (s) => {
+      process.stderr.write(
+        `${s.judge === null ? "✗" : "✓"} ${s.id}${s.error ? ` (${s.error})` : ""}\n`,
+      );
+    },
+  );
+  console.log(values.json ? JSON.stringify(report, null, 2) : formatCalibration(report));
+  return calibrationGate(report, maxMae, values.json ? console.error : console.log);
+}
+
+/** Gate fails when the judge is too far from humans, or when any sample could not be scored. */
+function calibrationGate(
+  report: CalibrationReport,
+  maxMae: number | undefined,
+  log: (s: string) => void,
+): number {
+  if (maxMae === undefined) return EXIT.OK;
+  if (report.unscored > 0 || report.metrics === null) {
+    log(`\n✗ ${report.unscored} sample(s) could not be scored`);
+    return EXIT.GATE;
+  }
+  if (report.metrics.mae > maxMae) {
+    log(`\n✗ MAE ${report.metrics.mae.toFixed(2)} > allowed ${maxMae}`);
+    return EXIT.GATE;
+  }
+  return EXIT.OK;
+}
+
 export async function main(argv: string[]): Promise<number> {
   const [command, ...rest] = argv;
   try {
@@ -119,6 +163,8 @@ export async function main(argv: string[]): Promise<number> {
         return await cmdReport(rest);
       case "compare":
         return await cmdCompare(rest);
+      case "calibrate":
+        return await cmdCalibrate(rest);
       case undefined:
       case "-h":
       case "--help":

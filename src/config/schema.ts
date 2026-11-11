@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const providerSchema = z.object({
+export const providerSchema = z.object({
   /** Shell command. The case input is written to stdin; stdout is the output. */
   command: z.string().min(1),
   timeoutMs: z.number().int().positive().default(120_000),

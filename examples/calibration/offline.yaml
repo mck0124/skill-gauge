@@ -1,0 +1,16 @@
+# Offline demo: the "judge" is a tiny script, and the human scores below are
+# made-up demo labels — NOT a validation of any real judge.
+# For a real check, use `claude -p --model haiku` as the judge and score the
+# outputs yourself. Run: skill-gauge calibrate examples/calibration/offline.yaml
+name: offline-calibration-demo
+judge:
+  command: node ../../test/fixtures/fake-judge.mjs
+threshold: 0.7
+tolerance: 0.1
+samples:
+  - { id: s1, input: q, output: "GOOD answer", rubric: "Is it correct?", human: 0.95 }
+  - { id: s2, input: q, output: "GOOD answer", rubric: "Is it correct?", human: 0.8 }
+  - { id: s3, input: q, output: "MID answer", rubric: "Is it correct?", human: 0.4 }
+  - { id: s4, input: q, output: "MID answer", rubric: "Is it correct?", human: 0.6 }
+  - { id: s5, input: q, output: "BAD answer", rubric: "Is it correct?", human: 0.0 }
+  - { id: s6, input: q, output: "BAD answer", rubric: "Is it correct?", human: 0.8 }

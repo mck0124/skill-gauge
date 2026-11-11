@@ -99,6 +99,7 @@ provider는 **쉘 명령**입니다. 그래서 Claude Code, 다른 LLM CLI, 직�
 skill-gauge run <suite.yaml> [--repeat N] [--case ID]... [--out DIR] [--min-pass-rate R]
 skill-gauge report [run.json] [--dir DIR] [--json] [--min-pass-rate R]
 skill-gauge compare <base.json> <head.json> [--threshold T]
+skill-gauge calibrate <calibration.yaml> [--max-mae X] [--json]
 ```
 
 | 종료 코드 | 의미                                      |
@@ -131,6 +132,53 @@ overall: Δpass -100% · Δscore -0.83 · regressions 3
 위 출력은 SKILL.md에 "친절하게 설명부터 시작하라"는 지시를 넣어 일부러 망가뜨린 뒤 실제로 비교한 결과이고, 종료 코드는 `1`입니다. 통과율은 0%여도 점수가 0이 아닌 케이스가 있는 것은(`feature-with-scope`) assertion 일부만 통과했기 때문이며, 그래서 통과/실패 외에 점수도 함께 봅니다.
 `--threshold`보다 작은 변화는 무시합니다. LLM 출력에는 원래 노이즈가 있어서, 작은 흔들림까지 회귀로 잡으면 경보가 의미를 잃기 때문입니다.
 
+### 채점 LLM 검증 (`calibrate`)
+
+`llm-rubric`은 LLM이 LLM을 채점하는 방식이라, **채점기 자체가 틀릴 수 있습니다.** 채점기를 검증하지 않으면 "통과율 90%"가 채점기가 후해서 나온 숫자인지 알 수 없습니다. `calibrate`는 사람이 매긴 점수를 기준으로 채점기가 얼마나 가까운지 측정합니다.
+
+```yaml
+name: commit-judge
+judge: { command: claude -p --model haiku }
+repeat: 3 # 샘플당 채점 횟수. 평균과 흔들림(σ)을 봅니다
+threshold: 0.7 # 통과/실패 기준 (일치율 계산용)
+tolerance: 0.1 # 사람과 이 차이 이내면 "가깝다"
+samples:
+  - id: s1
+    input: Fixed a crash when GPX has no timestamps.
+    output: "fix(gpx): skip points without timestamps"
+    rubric: The subject is imperative mood and describes the fix.
+    human: 0.95 # 직접 매긴 0~1 점수
+  # ... 최소 2개, 보통 20~50개
+```
+
+```bash
+skill-gauge calibrate calibration.yaml --max-mae 0.15
+```
+
+```
+sample  human  judge  error  note
+------  -----  -----  -----  ----
+s6      0.80   0.10   -0.70
+s5      0.00   0.10   +0.10
+...
+offline-calibration-demo: MAE 0.19 · RMSE 0.30 · bias -0.09 (+ = judge more lenient than human)
+within ±0.1: 83% · agreement @0.7: 83% · r 0.61
+```
+
+> 위 출력은 `examples/calibration/offline.yaml`(가짜 채점 스크립트 + 데모용 점수)의 실제 실행 결과이며, 형식을 보여 주기 위한 것입니다. 실제 채점기를 검증한 결과가 아닙니다.
+
+| 지표        | 의미                                                                             |
+| ----------- | -------------------------------------------------------------------------------- |
+| MAE / RMSE  | 채점기와 사람 점수의 평균 차이. RMSE는 크게 틀린 샘플에 더 민감합니다            |
+| bias        | `채점기 − 사람`의 평균. 양수면 채점기가 사람보다 후합니다                        |
+| within ±tol | 사람과 `tolerance` 이내인 샘플 비율                                              |
+| agreement   | 채점기와 사람이 `threshold`의 같은 쪽(통과/실패)에 있는 비율                     |
+| r           | 피어슨 상관계수. 순위는 맞는데 점수 눈금이 다른지 구분합니다 (정의 불가면 `n/a`) |
+
+- 채점 호출이 한 번이라도 실패하거나 점수 JSON이 없으면 그 샘플은 **채점 불가**로 표시하고 지표에서 제외합니다. 일부만 성공한 값을 평균내서 일치율을 부풀리지 않기 위해서입니다.
+- `--max-mae`를 주면 MAE 초과 또는 채점 불가 샘플이 있을 때 종료 코드 `1`로 끝납니다. 옵션이 없으면 보고만 합니다.
+- 오차가 큰 샘플이 표 맨 위에 나오므로, 어떤 종류의 출력에서 채점기가 틀리는지 바로 볼 수 있습니다.
+
 ## 설계 결정
 
 - **Provider를 쉘 명령으로**: 특정 SDK에 묶이지 않고, 어떤 CLI든 평가할 수 있게 했습니다. 테스트에서는 같은 `Provider` 함수 타입으로 가짜 구현을 주입합니다.
@@ -153,7 +201,7 @@ src/
 ├── config/           # YAML 로딩 + zod 스키마
 ├── providers/        # Provider 타입, 쉘 명령 provider
 ├── assertions/       # assertion 평가, LLM judge 프롬프트·파싱
-├── core/             # 실행(동시성 풀), 통계, 비교
+├── core/             # 실행(동시성 풀), 통계, 비교, 채점기 검증(calibrate)
 ├── store/            # 실행 결과 저장·로드
 └── format/           # 터미널 표 출력
 ```
