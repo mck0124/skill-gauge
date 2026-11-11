@@ -60,3 +60,13 @@ describe("compare added/removed", () => {
     expect(r.regressions).toBe(0);
   });
 });
+
+describe("commandProvider timeout with child processes", () => {
+  it("does not wait for grandchildren that outlive the shell", async () => {
+    const started = Date.now();
+    await expect(commandProvider(cfg("sleep 5; echo done", 200), cwd)("", ctx)).rejects.toThrow(
+      /timed out/,
+    );
+    expect(Date.now() - started).toBeLessThan(2000);
+  });
+});

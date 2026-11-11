@@ -1,4 +1,4 @@
-import { spawn } from "node:child_process";
+import { spawn, type ChildProcess } from "node:child_process";
 import type { ProviderConfig } from "../config/schema.js";
 import type { Provider } from "./types.js";
 
@@ -8,6 +8,17 @@ export class ProviderError extends Error {
 
 const STDERR_TAIL = 500;
 
+/** Kills the whole process group; a shell alone would leave children holding our pipes open. */
+function killTree(child: ChildProcess): void {
+  try {
+    if (child.pid !== undefined && process.platform !== "win32")
+      process.kill(-child.pid, "SIGKILL");
+    else child.kill("SIGKILL");
+  } catch {
+    child.kill("SIGKILL");
+  }
+}
+
 /** Runs a shell command per call: input → stdin, stdout → output. */
 export function commandProvider(config: ProviderConfig, cwd: string): Provider {
   return (input, ctx) =>
@@ -15,6 +26,8 @@ export function commandProvider(config: ProviderConfig, cwd: string): Provider {
       const child = spawn(config.command, {
         cwd,
         shell: true,
+        // Own process group, so a timeout can kill the shell *and* its children.
+        detached: process.platform !== "win32",
         env: {
           ...process.env,
           ...config.env,
@@ -27,7 +40,7 @@ export function commandProvider(config: ProviderConfig, cwd: string): Provider {
       let timedOut = false;
       const timer = setTimeout(() => {
         timedOut = true;
-        child.kill("SIGKILL");
+        killTree(child);
       }, config.timeoutMs);
 
       child.stdout.on("data", (d: Buffer) => (stdout += d.toString()));
