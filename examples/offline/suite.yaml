@@ -1,0 +1,15 @@
+# Runs without any API key — the "skill" is a tiny Node script.
+# Run: skill-eval run examples/offline/suite.yaml
+name: offline-demo
+provider:
+  command: node ../../test/fixtures/echo-skill.mjs
+repeat: 2
+cases:
+  - id: echo
+    input: hello world
+    assert: [{ type: contains, value: hello }]
+  - id: shout
+    input: please shout
+    assert:
+      - { type: regex, pattern: "^[A-Z ]+$" }
+      - { type: max-length, value: 20 }

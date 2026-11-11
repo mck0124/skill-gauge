@@ -1,0 +1,32 @@
+# Evaluates the commit-message skill via Claude Code in headless mode.
+# Requires the `claude` CLI. Run: skill-eval run examples/commit-message/suite.yaml
+name: commit-message
+provider:
+  command: claude -p --append-system-prompt "$(cat SKILL.md)"
+  timeoutMs: 90000
+judge:
+  command: claude -p --model haiku
+repeat: 3
+concurrency: 3
+
+cases:
+  - id: bugfix
+    input: Fixed a crash when the GPX file has no timestamps; we now skip those points.
+    assert:
+      - { type: regex, pattern: "^fix(\\([\\w-]+\\))?: " }
+      - { type: max-length, value: 200 }
+      - { type: not-contains, value: "```" }
+
+  - id: feature-with-scope
+    input: Added a --json flag to the report command of the CLI.
+    assert:
+      - { type: regex, pattern: "^feat\\(cli\\): " }
+      - type: llm-rubric
+        rubric: The subject is imperative mood ("add", not "added") and mentions the --json flag.
+        threshold: 0.8
+
+  - id: no-chatter
+    input: Renamed internal variable `tmp` to `buffer` in the parser. No behavior change.
+    assert:
+      - { type: regex, pattern: "^refactor" }
+      - { type: not-contains, value: "Here", ignoreCase: false }
