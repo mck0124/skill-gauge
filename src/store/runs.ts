@@ -2,7 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import type { RunRecord } from "../core/types.js";
 
-export const DEFAULT_RUNS_DIR = ".skill-eval/runs";
+export const DEFAULT_RUNS_DIR = ".skill-gauge/runs";
 
 export async function saveRun(run: RunRecord, dir = DEFAULT_RUNS_DIR): Promise<string> {
   await mkdir(dir, { recursive: true });
@@ -15,7 +15,7 @@ export async function saveRun(run: RunRecord, dir = DEFAULT_RUNS_DIR): Promise<s
 export async function loadRun(path: string): Promise<RunRecord> {
   const data = JSON.parse(await readFile(path, "utf8")) as Partial<RunRecord>;
   if (data.version !== 1 || !Array.isArray(data.trials)) {
-    throw new Error(`${path}: not a skill-eval run file`);
+    throw new Error(`${path}: not a skill-gauge run file`);
   }
   return data as RunRecord;
 }

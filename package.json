@@ -1,17 +1,17 @@
 {
-  "name": "skill-eval",
+  "name": "skill-gauge",
   "version": "0.1.0",
   "description": "LLM Skill/프롬프트를 테스트 케이스로 반복 실행하고 점수·분산·회귀를 측정하는 CLI",
   "type": "module",
   "license": "MIT",
   "bin": {
-    "skill-eval": "./dist/cli.js"
+    "skill-gauge": "./dist/cli.js"
   },
   "files": [
     "dist"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -46,7 +46,7 @@
   "packageManager": "pnpm@11.21.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/mck0124/skill-eval"
+    "url": "https://github.com/mck0124/skill-gauge"
   },
   "keywords": [
     "llm",

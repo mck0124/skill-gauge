@@ -1,8 +1,8 @@
-# skill-eval
+# skill-gauge
 
 > LLM Skill·프롬프트를 **테스트 케이스로 반복 실행**해서 통과율·점수·분산·회귀를 숫자로 보여주는 CLI
 
-[![CI](https://github.com/mck0124/skill-eval/actions/workflows/ci.yml/badge.svg)](https://github.com/mck0124/skill-eval/actions/workflows/ci.yml)
+[![CI](https://github.com/mck0124/skill-gauge/actions/workflows/ci.yml/badge.svg)](https://github.com/mck0124/skill-gauge/actions/workflows/ci.yml)
 
 ## 왜 만들었나
 
@@ -18,7 +18,7 @@ Claude Code의 Skill이나 시스템 프롬프트를 고칠 때, 대부분 이�
 - **좋아졌는지 알 수 없습니다.** 수정 전후를 같은 기준으로 비교하지 않으면, 개선과 회귀를 구분할 수 없습니다.
 - **기준이 머릿속에만 있습니다.** "커밋 메시지는 72자 이하, Conventional Commits 형식"처럼 명확한 규칙조차 매번 눈으로 확인합니다.
 
-`skill-eval`은 이 기준을 YAML 테스트 케이스로 옮기고, 케이스마다 **N번 반복 실행**해서 통과율과 점수의 흔들림(σ)까지 측정합니다. 두 실행 결과를 비교해서 회귀를 잡고, CI에서 품질 게이트로도 쓸 수 있습니다.
+`skill-gauge`은 이 기준을 YAML 테스트 케이스로 옮기고, 케이스마다 **N번 반복 실행**해서 통과율과 점수의 흔들림(σ)까지 측정합니다. 두 실행 결과를 비교해서 회귀를 잡고, CI에서 품질 게이트로도 쓸 수 있습니다.
 
 > 배경: 실시간 GPS 이상행동 탐지 시스템을 만들면서 "자동 판정 점수가 사람 평가와 얼마나 가까운가"를 MAE/RMSE로 측정하고 개선한 경험이 있습니다. 그때 배운 점은 **측정하지 않으면 개선했다고 말할 수 없다**는 것이었고, 같은 원칙을 LLM Skill에 적용했습니다.
 
@@ -70,7 +70,7 @@ cases:
         weight: 2
 ```
 
-provider는 **쉘 명령**입니다. 그래서 Claude Code, 다른 LLM CLI, 직접 만든 스크립트를 SDK 연동 없이 모두 평가할 수 있습니다. 명령은 스위트 파일이 있는 디렉터리에서 실행되고, `SKILL_EVAL_CASE_ID`와 `SKILL_EVAL_TRIAL` 환경변수를 받습니다.
+provider는 **쉘 명령**입니다. 그래서 Claude Code, 다른 LLM CLI, 직접 만든 스크립트를 SDK 연동 없이 모두 평가할 수 있습니다. 명령은 스위트 파일이 있는 디렉터리에서 실행되고, `SKILL_GAUGE_CASE_ID`와 `SKILL_GAUGE_TRIAL` 환경변수를 받습니다.
 
 > 좋은 케이스 작성법, `repeat`·`threshold` 정하는 법, CI에서 PR 게이트로 쓰는 법은 [docs/guide.md](docs/guide.md)를 보세요.
 
@@ -96,9 +96,9 @@ provider는 **쉘 명령**입니다. 그래서 Claude Code, 다른 LLM CLI, 직�
 ## 명령어
 
 ```bash
-skill-eval run <suite.yaml> [--repeat N] [--case ID]... [--out DIR] [--min-pass-rate R]
-skill-eval report [run.json] [--dir DIR] [--json] [--min-pass-rate R]
-skill-eval compare <base.json> <head.json> [--threshold T]
+skill-gauge run <suite.yaml> [--repeat N] [--case ID]... [--out DIR] [--min-pass-rate R]
+skill-gauge report [run.json] [--dir DIR] [--json] [--min-pass-rate R]
+skill-gauge compare <base.json> <head.json> [--threshold T]
 ```
 
 | 종료 코드 | 의미                                      |
@@ -112,10 +112,10 @@ skill-eval compare <base.json> <head.json> [--threshold T]
 ### Skill 수정 전후 비교
 
 ```bash
-skill-eval run suite.yaml --out runs/base     # 수정 전
+skill-gauge run suite.yaml --out runs/base     # 수정 전
 # ... SKILL.md 수정 ...
-skill-eval run suite.yaml --out runs/head     # 수정 후
-skill-eval compare runs/base/*.json runs/head/*.json --threshold 0.1
+skill-gauge run suite.yaml --out runs/head     # 수정 후
+skill-gauge compare runs/base/*.json runs/head/*.json --threshold 0.1
 ```
 
 ```
@@ -160,7 +160,7 @@ src/
 
 - TypeScript `strict` + `noUncheckedIndexedAccess`, ESLint `strictTypeChecked`
 - 테스트: 단위 테스트(스키마, assertion, 통계, 비교, 동시성)와 실제 서브프로세스를 띄우는 CLI E2E 테스트
-- CI: Node 20/22에서 typecheck → lint → format → test → build → 빌드된 CLI 스모크 테스트
+- CI: Node 22/24에서 typecheck → lint → format → test → build → 빌드된 CLI 스모크 테스트
 
 ## 라이선스
 

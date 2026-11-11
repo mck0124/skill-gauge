@@ -1,5 +1,5 @@
 # Evaluates the commit-message skill via Claude Code in headless mode.
-# Requires the `claude` CLI. Run: skill-eval run examples/commit-message/suite.yaml
+# Requires the `claude` CLI. Run: skill-gauge run examples/commit-message/suite.yaml
 name: commit-message
 provider:
   command: claude -p --append-system-prompt "$(cat SKILL.md)"

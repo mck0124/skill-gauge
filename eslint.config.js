@@ -2,7 +2,7 @@ import js from "@eslint/js";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "coverage", ".skill-eval"] },
+  { ignores: ["dist", "coverage", ".skill-gauge"] },
   js.configs.recommended,
   {
     files: ["**/*.ts"],

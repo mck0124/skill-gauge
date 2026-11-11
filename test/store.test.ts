@@ -34,6 +34,6 @@ describe("run store", () => {
     const dir = await mkdtemp(join(tmpdir(), "se-store-"));
     const path = join(dir, "bad.json");
     await writeFile(path, JSON.stringify({ hello: 1 }));
-    await expect(loadRun(path)).rejects.toThrow(/not a skill-eval run file/);
+    await expect(loadRun(path)).rejects.toThrow(/not a skill-gauge run file/);
   });
 });

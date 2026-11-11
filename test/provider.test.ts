@@ -14,7 +14,7 @@ describe("commandProvider", () => {
   });
 
   it("exposes case id and trial via env", async () => {
-    const out = await commandProvider(cfg("echo $SKILL_EVAL_CASE_ID-$SKILL_EVAL_TRIAL"), cwd)(
+    const out = await commandProvider(cfg("echo $SKILL_GAUGE_CASE_ID-$SKILL_GAUGE_TRIAL"), cwd)(
       "",
       ctx,
     );

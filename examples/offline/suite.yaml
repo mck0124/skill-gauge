@@ -1,5 +1,5 @@
 # Runs without any API key — the "skill" is a tiny Node script.
-# Run: skill-eval run examples/offline/suite.yaml
+# Run: skill-gauge run examples/offline/suite.yaml
 name: offline-demo
 provider:
   command: node ../../test/fixtures/echo-skill.mjs

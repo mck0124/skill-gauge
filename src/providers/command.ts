@@ -18,8 +18,8 @@ export function commandProvider(config: ProviderConfig, cwd: string): Provider {
         env: {
           ...process.env,
           ...config.env,
-          SKILL_EVAL_CASE_ID: ctx.caseId,
-          SKILL_EVAL_TRIAL: String(ctx.trial),
+          SKILL_GAUGE_CASE_ID: ctx.caseId,
+          SKILL_GAUGE_TRIAL: String(ctx.trial),
         },
       });
       let stdout = "";

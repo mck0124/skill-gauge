@@ -8,7 +8,7 @@ const skill = resolve("test/fixtures/echo-skill.mjs");
 let dir: string;
 
 beforeEach(async () => {
-  dir = await mkdtemp(join(tmpdir(), "skill-eval-"));
+  dir = await mkdtemp(join(tmpdir(), "skill-gauge-"));
   vi.spyOn(console, "log").mockImplementation(() => undefined);
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   vi.spyOn(process.stderr, "write").mockImplementation(() => true);

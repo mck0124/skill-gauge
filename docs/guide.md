@@ -36,8 +36,8 @@ rubric은 하나의 기준만 묻도록 쓰세요. `"좋은 커밋 메시지인�
 ## 5. CI에서 PR 게이트로 쓰기
 
 ```yaml
-# .github/workflows/skill-eval.yml
-name: skill-eval
+# .github/workflows/skill-gauge.yml
+name: skill-gauge
 on: pull_request
 
 jobs:

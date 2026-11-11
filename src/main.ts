@@ -10,15 +10,15 @@ import { DEFAULT_RUNS_DIR, latestRunPath, loadRun, saveRun } from "./store/runs.
 /** 0 = ok, 1 = quality gate failed, 2 = usage / config error. */
 export const EXIT = { OK: 0, GATE: 1, USAGE: 2 } as const;
 
-const HELP = `skill-eval — measure LLM skill quality with repeatable test cases
+const HELP = `skill-gauge — measure LLM skill quality with repeatable test cases
 
 Usage:
-  skill-eval run <suite.yaml> [--repeat N] [--case ID]... [--out DIR] [--min-pass-rate R]
-  skill-eval report [run.json] [--dir DIR] [--json] [--min-pass-rate R]
-  skill-eval compare <base.json> <head.json> [--threshold T]
+  skill-gauge run <suite.yaml> [--repeat N] [--case ID]... [--out DIR] [--min-pass-rate R]
+  skill-gauge report [run.json] [--dir DIR] [--json] [--min-pass-rate R]
+  skill-gauge compare <base.json> <head.json> [--threshold T]
 
 Exit codes: 0 ok · 1 quality gate failed · 2 usage/config error
-Docs: https://github.com/mck0124/skill-eval#readme`;
+Docs: https://github.com/mck0124/skill-gauge#readme`;
 
 class UsageError extends Error {}
 
@@ -88,7 +88,7 @@ async function cmdReport(args: string[]): Promise<number> {
   });
   const minPassRate = ratio(values["min-pass-rate"], "--min-pass-rate");
   const path = positionals[0] ?? (await latestRunPath(values.dir));
-  if (!path) throw new UsageError(`no runs found in ${values.dir}; run \`skill-eval run\` first`);
+  if (!path) throw new UsageError(`no runs found in ${values.dir}; run \`skill-gauge run\` first`);
   const summary = summarize(await loadRun(path));
   console.log(values.json ? JSON.stringify(summary, null, 2) : formatSummary(summary));
   return gate(summary.passRate, minPassRate, values.json ? console.error : console.log);
@@ -133,7 +133,7 @@ export async function main(argv: string[]): Promise<number> {
       e instanceof ConfigError ||
       (e as { code?: string }).code?.startsWith("ERR_PARSE_ARGS")
     ) {
-      console.error(`error: ${(e as Error).message}\n\nRun \`skill-eval --help\` for usage.`);
+      console.error(`error: ${(e as Error).message}\n\nRun \`skill-gauge --help\` for usage.`);
       return EXIT.USAGE;
     }
     throw e;
