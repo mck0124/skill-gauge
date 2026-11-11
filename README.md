@@ -76,6 +76,24 @@ overall: Δpass +20% · Δscore +0.05 · regressions 0
 
 `perf-type`은 20%에서 100%가 됐고, 나머지 케이스에는 회귀가 없습니다.
 
+### 3. 채점 LLM은 사람보다 후했다
+
+`llm-rubric`을 믿어도 되는지 확인하려고 `calibrate`로 Haiku 채점기를 검증했습니다. 규칙 있는 SKILL.md와 한 줄짜리 단순 프롬프트에서 출력 16개를 모아(`gen-rules.yaml`, `gen-naive.yaml`) 순서를 섞고, **출처를 가린 채 직접 점수를 매겼습니다.** 그 뒤 채점기가 같은 16개를 3번씩 채점했습니다(`examples/calibration/commit-judge.yaml`).
+
+```
+sample                  human  judge  error  σ     note
+----------------------  -----  -----  -----  ----  ----
+s15-rename-var-naive    0.00   0.90   +0.90  0.00
+s06-docs-typo-rules     0.40   1.00   +0.60  0.00
+s05-breaking-api-rules  0.40   0.94   +0.54  0.04
+s14-perf-naive          0.00   0.27   +0.27  0.12
+...
+commit-judge: MAE 0.20 · RMSE 0.32 · bias +0.12 (+ = judge more lenient than human)
+within ±0.2: 69% · agreement @0.7: 81% · r 0.62
+```
+
+채점기는 일관적이지만(σ ≈ 0) 사람보다 **후하고**(bias +0.12), 몇몇 샘플에서는 크게 어긋납니다. 이 채점기로 "통과율 90%"가 나왔다면, 그중 일부는 사람이라면 통과시키지 않았을 출력입니다. 사람 점수가 0/0.4/0.7/1.0의 거친 척도라서 tolerance는 0.2로 잡았습니다. 샘플이 16개뿐이라 숫자는 경향을 보는 용도입니다.
+
 ## 테스트 스위트 작성
 
 ```yaml
