@@ -5,6 +5,12 @@ export const providerSchema = z.object({
   command: z.string().min(1),
   timeoutMs: z.number().int().positive().default(120_000),
   env: z.record(z.string(), z.string()).default({}),
+  /**
+   * Run each call in a fresh empty temp directory so the command cannot see (or be
+   * steered by) the repository around the suite. The suite directory stays reachable
+   * through $SKILL_GAUGE_SUITE_DIR.
+   */
+  isolate: z.boolean().default(false),
 });
 
 const base = { weight: z.number().positive().default(1) };
